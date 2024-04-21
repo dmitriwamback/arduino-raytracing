@@ -36,30 +36,54 @@ uint16_t rgbToHex(int r, int g, int b) {
     return hexadecimal;
 }
 
-typedef struct point {
+class point {
+public:
     float x;
     float y;
-} point;
 
-typedef struct ray {
+    point(float x, float y) {
+        this->x = x;
+        this->y = y;
+    }
+};
+
+class ray {
+public:
     float x;
     float y;
     float z;
-} ray;
+
+    ray(float x, float y, float z) {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+    }
+
+    ray operator+(ray b) {
+        return ray(x + b.x, y + b.y, z + b.z);
+    }
+    ray operator*(float b) {
+        return ray(x * b, y * b, z * b);
+    }
+
+    void normalize() {
+        float magnitude = sqrt(x * x + y * y + z * z);
+        x /= magnitude;
+        y /= magnitude;
+        z /= magnitude;
+    }
+};
 
 struct point screenCoordToUV(float x, float y) {
-    point p{};
-    p.x = (x/(float)SCREEN_WIDTH) * 2.f - 1.f;
-    p.y = (y/(float)SCREEN_HEIGHT) * 2.f - 1.f;
 
-    return p;
+    return point((x/(float)SCREEN_WIDTH) * 2.f - 1.f, (y/(float)SCREEN_HEIGHT) * 2.f - 1.f);
 }
 
 float dot(struct ray a, struct ray b) {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
 
-float radius = 2.f;
+float radius = 1.f;
 
 void setup() {
       // put your setup code here, to run once:
@@ -72,51 +96,35 @@ void loop() {
       // put your main code here, to run repeatedly:
       angle += 0.01f;
 
-      ray origin{};
-      origin.x = 0.f;
-      origin.y = 0.f;
-      origin.z = 4.f;
+      ray origin = ray(0.f, 0.f, 2.f);
 
-      for (int x = 0; x < SCREEN_WIDTH; x++) {
-          for (int y = 0; y < SCREEN_HEIGHT; y++) {
+      for (int x = 0; x < SCREEN_WIDTH; x++) { for (int y = 0; y < SCREEN_HEIGHT; y++) {
 
-              point uvPoint = screenCoordToUV(x, y);
-              ray dir{};
+          point uvPoint = screenCoordToUV(x, y);
+          ray rayDirection = ray(uvPoint.x, uvPoint.y, -1.f);
 
-              dir.x = uvPoint.x;
-              dir.y = uvPoint.y;
-              dir.z = -1.f;
+          float a = dot(rayDirection, rayDirection);
+          float b = 2.f * dot(origin, rayDirection);
+          float c = dot(origin, origin) - pow(radius, 2);
 
-              float a = dot(dir, dir);
-              float b = 2.f * dot(origin, dir);
-              float c = dot(origin, origin) - pow(radius, 2);
-
-              float delta = pow(b, 2.f) - (4.f * a * c);
-              if (delta >= 0) {
-                  float t1 = (-b - sqrt(delta))/(2.f * a);
-                  float t2 = (-b + sqrt(delta))/(2.f * a);
-
-                  ray hitClosest{};;
-                  hitClosest.x = dir.x * t1;
-                  hitClosest.y = dir.y * t1;
-                  hitClosest.z = dir.z * t1;
-
-                  ray normal{};
-                  normal.x = hitClosest.x;
-                  normal.y = hitClosest.y;
-                  normal.z = hitClosest.z;
-                  float magnitude = sqrt(dot(normal, normal));
-                  float R = normal.x / magnitude;
-                  float G = normal.y / magnitude;
-                  float B = normal.z / magnitude;
-
-                  displ.drawPixel(y, x, rgbToHex(R * 255, G * 255, B * 255));
-              }
-              else {
-                  displ.drawPixel(y, x, rgbToHex(0, 0, 0));
-              }
+          float delta = pow(b, 2.f) - (4.f * a * c);
+          if (delta < 0) {
+              displ.drawPixel(y, x, rgbToHex(0, 0, 0));
+              continue;
           }
-      }
+          
+          float t1 = (-b - sqrt(delta))/(2.f * a);
+          float t2 = (-b + sqrt(delta))/(2.f * a);
+
+          ray hitClosest = origin + rayDirection * t1;
+          hitClosest.normalize();
+
+          float R = hitClosest.x;
+          float G = hitClosest.y;
+          float B = hitClosest.z;
+
+          displ.drawPixel(y, x, rgbToHex(R * 255, G * 255, B * 255));
+      }}
 
       //int hex = rgbToHex(255, 255, 0);
       //displ.fillScreen(hex);
